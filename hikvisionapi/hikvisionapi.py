@@ -128,6 +128,7 @@ class Client:
         return DynamicMethod(self, key)
 
     def stream_request(self, method, full_url, **data):
+        print(full_url)
         events = []
         response = self.req.request(method, full_url, timeout=self.timeout, stream=True, **data)
         for chunk in response.iter_lines(chunk_size=1024, delimiter=b'--boundary'):
@@ -251,31 +252,43 @@ class AsyncClient:
         full_url: str,
         present: str,
         timeout: Optional[float],
+        parse_content: str,
         **data,
     ) -> AsyncGenerator[Union[List[str], str], None]:
         if not self._auth_method:
             await self._detect_auth_method()
 
-        # This is a naive parser that assumes all stream endpoints will generate XML since
-        # there aren't any convenient multipart readers
-        async with httpx.AsyncClient(auth=self._auth_method) as client:
-            async with client.stream(
-                method, full_url, timeout=timeout, **data
-            ) as response:
-                buffer = ""
-                opening_tag = None
+        if parse_content == "multipart":
+            async with httpx.AsyncClient(auth=self._auth_method) as client:
+                async with client.stream(
+                    method, full_url, timeout=timeout, **data
+                ) as response:
+                    buffer = b""
+                    async for chunk in response.aiter_bytes():
+                        buffer += chunk
+                        yield buffer
+        else:
 
-                async for chunk in response.aiter_text():
-                    buffer += chunk
-                    events = buffer.split("\r\n\r\n")[1:]
+            # This is a naive parser that assumes all stream endpoints will generate XML since
+            # there aren't any convenient multipart readers
+            async with httpx.AsyncClient(auth=self._auth_method) as client:
+                async with client.stream(
+                    method, full_url, timeout=timeout, **data
+                ) as response:
+                    buffer = ""
+                    opening_tag = None
 
-                    if not opening_tag and len(events) > 0 and ">" in events[0]:
-                        opening_tag = events[0].split(">", 1)[0].split("<", 1)[1].split(" ")[0]
+                    async for chunk in response.aiter_text():
+                        buffer += chunk
+                        events = buffer.split("\r\n\r\n")[1:]
 
-                    if opening_tag and f"</{opening_tag}>" in events[0]:
-                        yield await async_response_parser(events[0].split(f"</{opening_tag}>", 1)[0] + f"</{opening_tag}>", present=present)
-                        opening_tag = None
-                        buffer = "".join(events[1:])
+                        if not opening_tag and len(events) > 0 and ">" in events[0]:
+                            opening_tag = events[0].split(">", 1)[0].split("<", 1)[1].split(" ")[0]
+
+                        if opening_tag and f"</{opening_tag}>" in events[0]:
+                            yield await async_response_parser(events[0].split(f"</{opening_tag}>", 1)[0] + f"</{opening_tag}>", present=present)
+                            opening_tag = None
+                            buffer = "".join(events[1:])               
 
     async def opaque_request(
         self,
@@ -339,3 +352,42 @@ class AsyncClient:
             )
         else:
             return self.common_request(method, full_url, present, timeout, **kwargs)
+
+    
+
+
+
+"""
+async def stream_request(
+        self,
+        method: str,
+        full_url: str,
+        present: str,
+        timeout: Optional[float],
+        **data,
+    ) -> AsyncGenerator[Union[List[str], str], None]:
+        if not self._auth_method:
+            await self._detect_auth_method()
+
+        # This is a naive parser that assumes all stream endpoints will generate XML since
+        # there aren't any convenient multipart readers
+        async with httpx.AsyncClient(auth=self._auth_method) as client:
+            async with client.stream(
+                method, full_url, timeout=timeout, **data
+            ) as response:
+                buffer = ""
+                opening_tag = None
+
+                async for chunk in response.aiter_text():
+                    buffer += chunk
+                    events = buffer.split("\r\n\r\n")[1:]
+
+                    if not opening_tag and len(events) > 0 and ">" in events[0]:
+                        opening_tag = events[0].split(">", 1)[0].split("<", 1)[1].split(" ")[0]
+
+                    if opening_tag and f"</{opening_tag}>" in events[0]:
+                        yield await async_response_parser(events[0].split(f"</{opening_tag}>", 1)[0] + f"</{opening_tag}>", present=present)
+                        opening_tag = None
+                        buffer = "".join(events[1:])
+
+"""
