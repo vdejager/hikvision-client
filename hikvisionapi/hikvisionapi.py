@@ -127,7 +127,8 @@ class Client:
     def __getattr__(self, key):
         return DynamicMethod(self, key)
 
-    def stream_request(self, method, full_url, **data):
+    def stream_request(self, method, full_url, parse_content="multipart", **data):
+
         events = []
         response = self.req.request(method, full_url, timeout=self.timeout, stream=True, **data)
         for chunk in response.iter_lines(chunk_size=1024, delimiter=b'--boundary'):
@@ -251,31 +252,63 @@ class AsyncClient:
         full_url: str,
         present: str,
         timeout: Optional[float],
+        parse_content: str,
         **data,
     ) -> AsyncGenerator[Union[List[str], str], None]:
         if not self._auth_method:
             await self._detect_auth_method()
 
-        # This is a naive parser that assumes all stream endpoints will generate XML since
-        # there aren't any convenient multipart readers
+       
         async with httpx.AsyncClient(auth=self._auth_method) as client:
             async with client.stream(
                 method, full_url, timeout=timeout, **data
             ) as response:
-                buffer = ""
-                opening_tag = None
+                buffer=b''
+                boundary="boundary"
+                #boundary=b'boundary'
 
-                async for chunk in response.aiter_text():
+                async for chunk in response.aiter_bytes():
+                    
                     buffer += chunk
-                    events = buffer.split("\r\n\r\n")[1:]
 
-                    if not opening_tag and len(events) > 0 and ">" in events[0]:
-                        opening_tag = events[0].split(">", 1)[0].split("<", 1)[1].split(" ")[0]
+                    # Initialize boundary if not set
+                    if boundary is None:
+                        content_type = response.headers.get('Content-Type', '')
+                        if 'boundary=' in content_type:
+                            boundary = content_type.split('boundary=')[1].strip()
+                        else:
+                            raise ValueError("Boundary not found in Content-Type header")
 
-                    if opening_tag and f"</{opening_tag}>" in events[0]:
-                        yield await async_response_parser(events[0].split(f"</{opening_tag}>", 1)[0] + f"</{opening_tag}>", present=present)
-                        opening_tag = None
-                        buffer = "".join(events[1:])
+                    while True:
+                        boundary_bytes = f'--{boundary}'.encode()
+                        end_boundary_bytes = f'--{boundary}--'.encode()
+                        
+                        # Find the next boundary in the buffer
+                        boundary_pos = buffer.find(boundary_bytes)
+                        
+                        if boundary_pos == -1:
+                            break  # Boundary not found, wait for more data
+
+                        # Handle end of multipart stream
+                        if buffer[boundary_pos:boundary_pos + len(end_boundary_bytes)] == end_boundary_bytes:
+                            # Process the last part
+                            part = buffer[:boundary_pos]
+                            if part:
+                                process_part(part)
+                            return  # End of stream
+
+                        # Extract part data
+                        next_boundary_pos = buffer.find(boundary_bytes, boundary_pos + len(boundary_bytes))
+                        
+                        if next_boundary_pos == -1:
+                            break  # Next boundary not found, wait for more data
+
+                        part = buffer[boundary_pos + len(boundary_bytes):next_boundary_pos]
+                        yield(part)
+
+                        # Update buffer
+                        buffer = buffer[next_boundary_pos:]
+
 
     async def opaque_request(
         self,
