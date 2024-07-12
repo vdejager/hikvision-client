@@ -1,3 +1,5 @@
 xmltodict
 requests
 httpx
+typing
+urllib
