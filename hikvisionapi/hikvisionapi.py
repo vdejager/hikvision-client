@@ -127,13 +127,7 @@ class Client:
     def __getattr__(self, key):
         return DynamicMethod(self, key)
 
-<<<<<<< HEAD
     def stream_request(self, method, full_url, parse_content="multipart", **data):
-
-=======
-    def stream_request(self, method, full_url, **data):
-        print(full_url)
->>>>>>> bf00735d5a9391ff95c633b1ee9138edd3f45db2
         events = []
         response = self.req.request(method, full_url, timeout=self.timeout, stream=True, **data)
         for chunk in response.iter_lines(chunk_size=1024, delimiter=b'--boundary'):
