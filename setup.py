@@ -6,7 +6,7 @@ with open('hikvisionapi/__init__.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         fd.read(), re.MULTILINE).group(1)
 
-setup(name='hikvisionapi',
+setup(name='hikvision-client',
       version=version,
       description='The client for HIKVISION cameras, DVR',
       url='https://github.com/MissiaL/hikvision-client',
