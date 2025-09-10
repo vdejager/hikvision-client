@@ -93,7 +93,7 @@ class Client:
     </DeviceInfo>
     """
 
-    def __init__(self, host, login=None, password=None, timeout=3, isapi_prefix='ISAPI'):
+    def __init__(self, host, login=None, password=None, timeout=10, isapi_prefix='ISAPI'):
         """
         :param host: Host for device ('http://192.168.0.2')
         :param login: (optional) Login for device
@@ -209,7 +209,7 @@ class AsyncClient:
         host: str,
         login: str,
         password: str,
-        timeout: Optional[float] = 3,
+        timeout: Optional[float] = 10,
         isapi_prefix: str = "ISAPI",
     ):
         """
