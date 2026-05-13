@@ -213,6 +213,7 @@ class AsyncClient:
         password: str,
         timeout: Optional[float] = 10,
         isapi_prefix: str = "ISAPI",
+        verify_ssl: bool = True
     ):
         """
         :param host: Host for device ('http://192.168.0.2')
