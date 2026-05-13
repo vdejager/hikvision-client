@@ -221,7 +221,7 @@ class AsyncClient:
         :param password: (optional) Password for device
         :param isapi_prefix: (optional) defaults to ISAPI but can be customized
         :param timeout: (optional) Default timeout for requests
-        :param veryfy_ssl:(optional) ignore SSL errors
+        :param verify_ssl: (optional) Ignore SSL errors
         """
         self.host: str = host
         self.login: str = login
@@ -229,6 +229,7 @@ class AsyncClient:
         self.timeout: Optional[float] = timeout
         self.isapi_prefix: str = isapi_prefix
         self._auth_method: Optional[httpx._auth.Auth] = None
+        self.verify_ssl: Optional[bool] = verify_ssl
 
     def __getattr__(self, key: str):
         return DynamicMethod(self, key)
