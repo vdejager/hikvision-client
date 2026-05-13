@@ -93,7 +93,7 @@ class Client:
     </DeviceInfo>
     """
 
-    def __init__(self, host, login=None, password=None, timeout=10, isapi_prefix='ISAPI', verify_ssl=True):
+    def __init__(self, host, login=None, password=None, timeout=10, isapi_prefix='ISAPI', verify=True):
         """
         :param host: Host for device ('http://192.168.0.2')
         :param login: (optional) Login for device
@@ -108,7 +108,7 @@ class Client:
         self.isapi_prefix = isapi_prefix
         self.req = self._check_session()
         self.count_events = 1
-        self.verify_ssl=verify_ssl
+        self.verify=verify
 
     def _check_session(self):
         """Check the connection with device
@@ -117,7 +117,7 @@ class Client:
         """
         full_url = urljoin(self.host, self.isapi_prefix + '/System/status')
         session = requests.session()
-        session.verify = self.verify_ssl  # Disable SSL verification
+        session.verify = self.verify # Disable SSL verification
         session.auth = HTTPBasicAuth(self.login, self.password)
         response = session.get(full_url)
         if response.status_code == 401:
@@ -185,7 +185,7 @@ class AsyncClient:
     Basic Usage::
 
     from hikvisionapi import AsyncClient
-    api = AsyncClient('http://192.168.0.2', 'admin', 'admin',verify_ssl=True)
+    api = AsyncClient('http://192.168.0.2', 'admin', 'admin',verify=True)
     response = await api.System.deviceInfo(method='get')
 
     response = {
@@ -213,7 +213,7 @@ class AsyncClient:
         password: str,
         timeout: Optional[float] = 10,
         isapi_prefix: str = "ISAPI",
-        verify_ssl: bool = True
+        verify: bool = True
     ):
         """
         :param host: Host for device ('http://192.168.0.2')
@@ -221,7 +221,7 @@ class AsyncClient:
         :param password: (optional) Password for device
         :param isapi_prefix: (optional) defaults to ISAPI but can be customized
         :param timeout: (optional) Default timeout for requests
-        :param verify_ssl: (optional) Ignore SSL errors
+        :param verify: (optional) Ignore SSL errors
         """
         self.host: str = host
         self.login: str = login
@@ -229,7 +229,7 @@ class AsyncClient:
         self.timeout: Optional[float] = timeout
         self.isapi_prefix: str = isapi_prefix
         self._auth_method: Optional[httpx._auth.Auth] = None
-        self.verify_ssl: Optional[bool] = verify_ssl
+        self.verify: Optional[bool] = verify
 
     def __getattr__(self, key: str):
         return DynamicMethod(self, key)
@@ -242,7 +242,7 @@ class AsyncClient:
             httpx.BasicAuth(self.login, self.password),
             httpx.DigestAuth(self.login, self.password),
         ]:
-                async with httpx.AsyncClient(auth=method, verify=self.verify_ssl) as client:
+                async with httpx.AsyncClient(auth=method, verify=self.verify) as client:
                     response = await client.get(full_url)
                     if response.status_code == 200:
                         self._auth_method = method
@@ -263,7 +263,7 @@ class AsyncClient:
             await self._detect_auth_method()
 
         if parse_content == "multipart":
-            async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify_ssl) as client:
+            async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify) as client:
                 async with client.stream(
                     method, full_url, timeout=timeout, **data
                 ) as response:
@@ -314,7 +314,7 @@ class AsyncClient:
                             buffer = buffer[next_boundary_pos:]
 
         if parse_content == "multipart/raw":
-            async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify_ssl) as client:
+            async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify) as client:
                 async with client.stream(
                     method, full_url, timeout=timeout, **data
                 ) as response:
@@ -326,7 +326,7 @@ class AsyncClient:
 
             # This is a naive parser that assumes all stream endpoints will generate XML since
             # there aren't any convenient multipart readers
-            async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify_ssl) as client:
+            async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify) as client:
                 async with client.stream(
                     method, full_url, timeout=timeout, **data
                 ) as response:
@@ -356,7 +356,7 @@ class AsyncClient:
         if not self._auth_method:
             await self._detect_auth_method()
 
-        async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify_ssl) as client:
+        async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify) as client:
             async with client.stream(
                 method, full_url, timeout=timeout, **data
             ) as response:
@@ -374,7 +374,7 @@ class AsyncClient:
         if not self._auth_method:
             await self._detect_auth_method()
 
-        async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify_ssl) as client:
+        async with httpx.AsyncClient(auth=self._auth_method, verify=self.verify) as client:
             response = await client.request(method, full_url, timeout=timeout, **data)
             response.raise_for_status()
             return await async_response_parser(response, present)
