@@ -93,7 +93,7 @@ class Client:
     </DeviceInfo>
     """
 
-    def __init__(self, host, login=None, password=None, timeout=10, isapi_prefix='ISAPI'):
+    def __init__(self, host, login=None, password=None, timeout=10, isapi_prefix='ISAPI', verify_ssl=True):
         """
         :param host: Host for device ('http://192.168.0.2')
         :param login: (optional) Login for device
@@ -108,6 +108,7 @@ class Client:
         self.isapi_prefix = isapi_prefix
         self.req = self._check_session()
         self.count_events = 1
+        self.verify_ssl=verify_ssl
 
     def _check_session(self):
         """Check the connection with device
@@ -116,6 +117,7 @@ class Client:
         """
         full_url = urljoin(self.host, self.isapi_prefix + '/System/status')
         session = requests.session()
+        session.verify = False  # Disable SSL verification
         session.auth = HTTPBasicAuth(self.login, self.password)
         response = session.get(full_url)
         if response.status_code == 401:
